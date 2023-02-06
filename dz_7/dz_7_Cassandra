@@ -1,0 +1,90 @@
+-- запускаем
+docker exec -it goofy_pascal sh
+# cqlsh
+Connected to Test Cluster at 127.0.0.1:9042
+[cqlsh 6.0.0 | Cassandra 4.0.7 | CQL spec 3.4.5 | Native protocol v5]
+Use HELP for help.
+cqlsh>
+
+-- смотрим схемы 
+cqlsh> DESCRIBE KEYSPACES;
+
+lesson7  system_auth         system_schema  system_views
+system   system_distributed  system_traces  system_virtual_schema
+
+-- снесём lesson_7, чего она тут делает вообще
+cqlsh> DROP KEYSPACE lesson7;
+
+-- создадим новую схему с такими вот параметрами:
+'class': 'SimpleStrategy' - для равномерного распределения данных
+'replication_factor': 1 - без репликаций
+
+cqlsh> CREATE KEYSPACE IF NOT EXISTS dz_7
+   ... WITH REPLICATION = {
+   ... 'class': 'SimpleStrategy',
+   ... 'replication_factor': 1
+   ... };
+
+-- перейдём в неё
+cqlsh> USE dz_7;
+
+-- создадим таблицу с именами и возрастом
+cqlsh:dz_7> CREATE TABLE IF NOT EXISTS users (
+        ... id int,
+        ... name text,
+        ... age int,
+        ... primary key (id)
+        ... );
+
+-- таблица сейчас пустая:
+cqlsh:dz_7> SELECT * FROM users;
+
+ id | age | name
+----+-----+------
+
+(0 rows)
+
+-- заполним несколько строчек
+cqlsh:dz_7> INSERT INTO users (id, name, age) VALUES (1, 'Misha', 30);
+cqlsh:dz_7> INSERT INTO users (id, name, age) VALUES (2, 'Masha', 25);
+cqlsh:dz_7> INSERT INTO users (id, name, age) VALUES (3, 'Pasha', 35);
+cqlsh:dz_7> INSERT INTO users (id, name, age) VALUES (2, 'Glasha', 15);
+cqlsh:dz_7> INSERT INTO users (id, name, age) VALUES (4, 'Parasha', 15);
+
+-- смотрим
+cqlsh:dz_7> SELECT * FROM users;
+
+ id | age | name
+----+-----+---------
+  1 |  30 |   Misha
+  2 |  15 |  Glasha
+  4 |  15 | Parasha
+  3 |  35 |   Pasha
+
+-- Глаша перезаписала Машу, что логично, т.к. у них одинаковый primary key
+-- Посмотрим на Мишу с Пашей
+cqlsh:dz_7> SELECT * FROM users WHERE id IN (1, 3);
+
+ id | age | name
+----+-----+-------
+  1 |  30 | Misha
+  3 |  35 | Pasha
+
+-- а запрос у двойным условием можно сделать двумя способами:
+-- 1) при создании таблицы указать составной primary key
+-- 2) разрешив в SELECT-запросе фильтрацию с помощью ALLOW FILTERING, вот как в примере:
+
+cqlsh:dz_7> SELECT * FROM users WHERE id IN (1, 3) AND age = 35 ALLOW FILTERING;
+
+ id | age | name
+----+-----+-------
+  3 |  35 | Pasha
+
+-- поигрались и хватит, снесём схему
+cqlsh:dz_7> DROP KEYSPACE IF EXISTS dz_7;
+
+-- проверим - нет её в списке, удалилась
+cqlsh:dz_7> DESCRIBE KEYSPACES;
+
+system       system_distributed  system_traces  system_virtual_schema
+system_auth  system_schema       system_views

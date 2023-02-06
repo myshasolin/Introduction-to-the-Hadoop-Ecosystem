@@ -1,0 +1,108 @@
+-- запускаем:
+docker-hbase-master> docker exec -it hbase sh
+hbase shell
+
+-- проверим версию:
+hbase(main):001:0> version
+1.2.6, rUnknown, Mon May 29 02:25:32 CDT 2017
+
+-- узнать по себя много всего интересного можно так:
+hbase(main):002:0> whoami
+root (auth:SIMPLE)
+    groups: root
+
+-- инфа о системе:
+hbase(main):003:0> status
+1 active master, 0 backup masters, 1 servers, 0 dead, 2.0000 average load
+
+-- посмотреть список таблиц сожно так:
+hbase(main):004:0> list
+TABLE                                                                                                                          
+0 row(s) in 0.0040 seconds
+
+=> []
+
+-- создадим схему: 
+hbase(main):006:0> create_namespace 'dz7'
+0 row(s) in 0.0360 seconds
+
+-- а в схеме таблицу:
+hbase(main):008:0> create 'dz7:users', 'name', 'age'
+0 row(s) in 1.2460 seconds
+
+=> Hbase::Table - dz7:users
+
+-- теперь список выглядит так:
+hbase(main):009:0> list
+TABLE
+dz_7:users                                                                                                                          
+0 row(s) in 0.0070 seconds
+
+=> ["dz_7:users"]
+
+-- убедимся в том, что таблица включена и всё с ней норм:
+hbase(main):010:0> is_enabled 'dz_7'
+true
+0 row(s) in 0.0150 seconds
+
+-- добавляем данные:
+hbase(main):017:0> put 'dz7:users', '1', 'name', 'Misha'
+0 row(s) in 0.1400 seconds
+hbase(main):018:0> put 'dz7:users', '1', 'age', '30'
+0 row(s) in 0.0130 seconds
+hbase(main):019:0> put 'dz7:users', '2', 'name', 'Masha'
+0 row(s) in 0.0110 seconds
+hbase(main):020:0> put 'dz7:users', '2', 'age', '25'
+0 row(s) in 0.0120 seconds
+hbase(main):021:0> put 'dz7:users', '3', 'name', 'Pasha'
+0 row(s) in 0.0050 seconds
+hbase(main):022:0> put 'dz7:users', '3', 'age', '35'
+0 row(s) in 0.0100 seconds
+hbase(main):023:0> put 'dz7:users', '2', 'name', 'Glasha'
+0 row(s) in 0.0080 seconds
+hbase(main):024:0> put 'dz7:users', '2', 'age', '15'
+0 row(s) in 0.0060 seconds
+hbase(main):025:0> put 'dz7:users', '4', 'name', 'Parasha'
+0 row(s) in 0.0110 seconds
+hbase(main):026:0> put 'dz7:users', '4', 'age', '15'
+0 row(s) in 0.0050 seconds
+
+-- смотрим, и здесь как в Cassandra, Маши нет, затёрло её бедняжку:
+hbase(main):027:0> scan 'dz7:users'
+ROW                              COLUMN+CELL
+ 1                               column=age:, timestamp=1670982856608, value=30
+ 1                               column=name:, timestamp=1670982838102, value=Misha
+ 2                               column=age:, timestamp=1670983043119, value=15
+ 2                               column=name:, timestamp=1670983025628, value=Glasha
+ 3                               column=age:, timestamp=1670983008535, value=35
+ 3                               column=name:, timestamp=1670982991328, value=Pasha
+ 4                               column=age:, timestamp=1670983070146, value=15
+ 4                               column=name:, timestamp=1670983059531, value=Parasha
+4 row(s) in 0.0410 seconds
+
+-- сейчас по второй строке есть одна запись:
+hbase(main):032:0> get 'dz7:users', '2', {COLUMN => 'name', VERSION => 2}
+COLUMN                           CELL
+name:                           timestamp=1670983978942, value=Glasha
+0 row(s) in 0.0050 seconds
+
+-- на практике можно добавлять больше версий колонки, вот так:
+hbase(main):041:0> alter 'dz7:users', {NAME => 'name', VERSION => 4}
+hbase(main):042:0> alter 'dz7:users', {NAME => 'age', VERSION => 4}
+
+-- после чего появится возможность хранить до 4-х версий. Тогда бы и Маша никуда не делась 
+-- но в Докере, в котором я играюсь, стоит ограничение версий в 1 шт. и команда не отрабатывает как надо
+-- так что наигрались, теперь удалим таблицу и схему. Для начала их правильно отключить:
+hbase(main):048:0> disable 'dz7:users'
+0 row(s) in 2.2770 seconds
+
+-- после чего удалить:
+hbase(main):049:0> drop 'dz7:users'
+0 row(s) in 1.2670 seconds
+
+-- проверяем список - чисто:
+hbase(main):050:0> list
+TABLE                                                                                                                          
+0 row(s) in 0.0180 seconds
+
+=> []
